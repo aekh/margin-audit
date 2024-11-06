@@ -10,14 +10,17 @@ from cryptorandom.cryptorandom import SHA256, int_from_hash
 from shangrla.core.Audit import Audit, Assertion, Contest, CVR
 from shangrla.core.NonnegMean import NonnegMean
 
-margins = [0.005, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.4]
-erates = [0.0, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.4]
+margins = [0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400, 0.0500,
+           0.0600, 0.0700, 0.0800, 0.0900, 0.1000, 0.1250, 0.1500]
+erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400, 0.0500]
 
 
 def main(error_rate=0.03, margin=0.03, size=50_000):
     # Create CVR data file
     n_mismatch = int(size * error_rate)
-    assert n_mismatch / size == error_rate, "Given margin pct not attainable"  # Ensure there is no rounding error
+    assert n_mismatch / size == error_rate, "Given error pct not attainable"  # Ensure there is no rounding error
+    ballot_margin = int(size * margin)
+    assert ballot_margin / size == margin, "Given margin pct not attainable"  # Ensure there is no rounding error
 
     cvr_input = []
     for i in range(size - n_mismatch):
@@ -137,10 +140,10 @@ def calc_pvalues_all_orderings(contests, cvr_input, n_orderings=1000):
 
 if __name__ == "__main__":
     counter = 0  # array size on SLURM cluster == 1-13
-    for erate in erates:
+    for margin in margins:
         counter += 1
         if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue  # parallelise on SLURM cluster
         print("pop_size, error_rate, margin, assertion_margin, sample_size_10pct, sample_size_5pct, sample_size_1pct, "
           "certified_10pct, certified_5pct, certified_1pct")
-        for margin in margins:
+        for erate in erates:
             main(error_rate=erate, margin=margin)
