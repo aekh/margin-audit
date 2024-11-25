@@ -10,17 +10,18 @@ from cryptorandom.cryptorandom import SHA256, int_from_hash
 from shangrla.core.Audit import Audit, Assertion, Contest, CVR
 from shangrla.core.NonnegMean import NonnegMean
 
-margins = [0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400, 0.0500,
-           0.0600, 0.0700, 0.0800, 0.0900, 0.1000, 0.1250, 0.1500]
-erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400, 0.0500]
 
-
-def main(error_rate=0.03, margin=0.03, size=50_000):
+def main(name="", error_rate=0.03, margin=0.03, size=50_000):
     # Create CVR data file
-    n_mismatch = int(size * error_rate)
-    assert n_mismatch / size == error_rate, "Given error pct not attainable"  # Ensure there is no rounding error
-    ballot_margin = int(size * margin)
-    assert ballot_margin / size == margin, "Given margin pct not attainable"  # Ensure there is no rounding error
+    n_mismatch = int(round(size * error_rate))
+    #assert n_mismatch / size == error_rate, "Given error pct not attainable"  # Ensure there is no rounding error
+    if margin < 1: # margin is given as a percentage
+        ballot_margin = int(size * margin)
+        assert ballot_margin / size == margin, "Given margin pct not attainable"  # Ensure there is no rounding error
+    else:
+        ballot_margin = margin
+        margin = ballot_margin / size
+        # assert int(round(margin * size)) == ballot_margin, "Given margin pct not attainable"  # Ensure there is no rounding error
 
     cvr_input = []
     for i in range(size - n_mismatch):
@@ -66,26 +67,13 @@ def main(error_rate=0.03, margin=0.03, size=50_000):
     # Calculate all of the p-values.
     pvalue_histories_array = calc_pvalues_all_orderings(contests, cvr_input)
     for pvalue_history in pvalue_histories_array:
-        below_10pct = pvalue_history <= 0.10
         below_5pct = pvalue_history <= 0.05
-        below_1pct = pvalue_history <= 0.01
-        certified_10pct = True
         certified_5pct = True
-        certified_1pct = True
-        where_10pct = np.argmax(below_10pct) + 1
         where_5pct = np.argmax(below_5pct) + 1
-        where_1pct = np.argmax(below_1pct) + 1
-        if sum(below_10pct) == 0 or pvalue_history[where_10pct-1] == 0.0:
-            certified_10pct = False
-            where_10pct = len(pvalue_history)
         if sum(below_5pct) == 0 or pvalue_history[where_5pct-1] == 0.0:
             certified_5pct = False
             where_5pct = len(pvalue_history)
-        if sum(below_1pct) == 0 or pvalue_history[where_1pct-1] == 0.0:
-            certified_1pct = False
-            where_1pct = len(pvalue_history)
-        print(f"{size}, {error_rate}, {margin}, {min_margin}, {where_10pct}, {where_5pct}, {where_1pct}, "
-              f"{certified_10pct}, {certified_5pct}, {certified_1pct}")
+        print(f"{name}, {margin}, {size}, {error_rate}, {min_margin}, {where_5pct}, {certified_5pct}")
 
 
 # =============================================================================
@@ -138,12 +126,75 @@ def calc_pvalues_all_orderings(contests, cvr_input, n_orderings=1000):
     return pvalue_list
 
 
+datafiles_nsw = np.array(
+    ["Albury","Auburn","Ballina","Balmain","Bankstown","Barwon","Bathurst","Baulkham_Hills","Bega","Blacktown",
+     "Blue_Mountains","Cabramatta","Camden","Campbelltown","Canterbury","Castle_Hill","Cessnock","Charlestown",
+     "Clarence","Coffs_Harbour","Coogee","Cootamundra","Cronulla","Davidson","Drummoyne","Dubbo","East_Hills",
+     "Epping","Fairfield","Gosford","Goulburn","Granville","Hawkesbury","Heathcote","Heffron","Holsworthy","Hornsby",
+     "Keira","Kiama","Kogarah","Ku-ring-gai","Lake_Macquarie","Lakemba","Lane_Cove","Lismore","Liverpool",
+     "Londonderry","Macquarie_Fields","Maitland","Manly","Maroubra","Miranda","Monaro","Mount_Druitt","Mulgoa",
+     "Murray","Myall_Lakes","Newcastle","Newtown","Northern_Tablelands","North_Shore","Oatley","Orange","Oxley",
+     "Parramatta","Penrith","Pittwater","Port_Macquarie","Port_Stephens","Prospect","Riverstone","Rockdale","Ryde",
+     "Seven_Hills","Shellharbour","South_Coast","Strathfield","Summer_Hill","Swansea","Sydney","Tamworth","Terrigal",
+     "The_Entrance","Tweed","Upper_Hunter","Vaucluse","Wagga_Wagga","Wakehurst","Wallsend","Willoughby",
+     "Wollondilly","Wollongong","Wyong"])
+datafiles_usirv = np.array(
+    ["Aspen_2009_CityCouncil","Berkeley_2010_D1CityCouncil","Berkeley_2010_D7CityCouncil",
+     "Oakland_2010_D4CityCouncil","Oakland_2010_Mayor","Pierce_2008_CountyAssessor","Pierce_2008_CountyExecutive",
+     "Aspen_2009_Mayor","Berkeley_2010_D4CityCouncil","Berkeley_2010_D8CityCouncil","Oakland_2010_D6CityCouncil",
+     "Pierce_2008_CityCouncil","Pierce_2008_CountyAuditor","SanFran_2007_Mayor",
+     "Minneapolis_2013_Mayor", "Minneapolis_2017_Mayor", "Minneapolis_2021_Mayor"])
+
+datafiles_nsw_ = "NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.txt"
+margins_nsw = "margins/NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.csv"
+orderings_nsw = "orderings/NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.csv"
+datafiles_usirv_ = "USIRV/" + datafiles_usirv + ".txt"
+margins_usirv = "margins/USIRV/" + datafiles_usirv + ".csv"
+orderings_usirv = "orderings/USIRV/" + datafiles_usirv + ".csv"
+
+path = "/home/aek/lu91/shared/data/dirtree-elections-analysis/"  # MonARCH
+# path = "/Users/aekk0001/Documents/PPR-Audits/datafiles/" # Local
+
+datafile_names = np.concatenate((datafiles_nsw, datafiles_usirv))
+datafiles = path + np.concatenate((datafiles_nsw_, datafiles_usirv_))
+margins = path + np.concatenate((margins_nsw, margins_usirv))
+orderings = path + np.concatenate((orderings_nsw, orderings_usirv))
+
+
 if __name__ == "__main__":
     counter = 0  # array size on SLURM cluster == 1-13
-    for margin in margins:
-        counter += 1
+    erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0050]
+    for i, _ in enumerate(datafiles):
+        counter += 1  # 1-110
+        # print(counter); continue
         if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue  # parallelise on SLURM cluster
-        print("pop_size, error_rate, margin, assertion_margin, sample_size_10pct, sample_size_5pct, sample_size_1pct, "
-          "certified_10pct, certified_5pct, certified_1pct")
+
+        print("datafile, margin, pop_size, error_rate, assertion_margin, sample_size_5pct, certified_5pct")
+
+        datafile_name = str(datafile_names[i])
+        datafile = datafiles[i]
+        marginfile = margins[i]
+        size = 0
+        margin = -1
+        with open(datafile) as f:
+            for line in f:
+                if ":" in line:
+                    size += int(line.split(":")[1])
+        with open(marginfile) as f:
+            f.readline()
+            for line in f:
+                margin = max(margin, int(line.split(",")[2]))
+        # print(f"{datafile_name=}, {margin=}, {size=}, {erate=}")
         for erate in erates:
-            main(error_rate=erate, margin=margin)
+            main(name=datafile_name, error_rate=erate, margin=margin, size=size)
+    # margins = [0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400, 0.0500,
+    #            0.0600, 0.0700, 0.0800, 0.0900, 0.1000, 0.1250, 0.1500]
+    # erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0025, 0.0050, 0.0075, 0.0100, 0.0150, 0.0200, 0.0250, 0.0300, 0.0400,
+    #           0.0500]
+    # for margin in margins:
+    #     counter += 1
+    #     # if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue  # parallelise on SLURM cluster
+    #     print("pop_size, error_rate, margin, assertion_margin, sample_size_10pct, sample_size_5pct, sample_size_1pct, "
+    #       "certified_10pct, certified_5pct, certified_1pct")
+    #     for erate in erates:
+    #         main(error_rate=erate, margin=margin)
