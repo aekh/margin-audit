@@ -78,6 +78,13 @@ def read_election_files(datafile, marginfile, orderfile):
 
 def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None, error_rate=0.00, margin=0.03):
 
+    if error_rate==0.0:
+        n_orderings = 1
+        n_errors = 0
+    else:
+        n_orderings = 1000
+        n_errors = int(round(size * error_rate))
+
     contests, cvrs = load_contests_from_raire_raw(data)
     contest = contests[0]
 
@@ -99,19 +106,6 @@ def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None,
                                   'replacement' : False}
             }
         })
-    # contest_dict = {'1':{'name'             : '1',
-    #                      'risk_limit'       : 0.000001,
-    #                      'cards'            : max_cards,
-    #                      'choice_function'  : Contest.SOCIAL_CHOICE_FUNCTION.SUPERMAJORITY,
-    #                      'n_winners'        : 1,
-    #                      'share_to_win'     : 1-margin,
-    #                      'candidates'       : ['match', 'mismatch'],
-    #                      'winner'           : ['match'],
-    #                      'audit_type'       : Audit.AUDIT_TYPE.POLLING,
-    #                      'test'             : NonnegMean.alpha_mart,
-    #                      'estim'            : NonnegMean.shrink_trunc
-    #                      }
-    #                 }
 
     contest_dict = {'1': {'name': '1',
                           'risk_limit': 0.05,
@@ -124,7 +118,7 @@ def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None,
                           'assertion_json': assertions,
                           'audit_type': Audit.AUDIT_TYPE.CARD_COMPARISON,
                           'test': NonnegMean.alpha_mart,
-                          'estim': NonnegMean.shrink_trunc
+                          'estim': NonnegMean.optimal_comparison
                           }
                     }
 
@@ -138,7 +132,7 @@ def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None,
     min_margin = Assertion.set_all_margins_from_cvrs(audit, contests, cvr_list)
 
     # Calculate all of the p-values.
-    pvalue_histories_array = calc_pvalues_all_orderings(contests, cvr_input, orderdata=orderdata)
+    pvalue_histories_array = calc_pvalues_all_orderings(contests, cvr_input, orderdata=orderdata, n_orderings=n_orderings, n_errors=n_errors)
     for pvalue_history in pvalue_histories_array:
         below_5pct = pvalue_history <= 0.05
         certified_5pct = True
@@ -189,17 +183,18 @@ def calc_pvalues_single_ordering(contests, cvr_input, orderdata, ordering_index,
     rng = np.random.default_rng(seed)
     ncand = len(contests['1'].candidates)
     for i in error_ids:
-        votes = mvr_input_shuffled[i]['votes']['1']
+        votes = mvr_input_shuffled[i-1]['votes']['1']
         nprefs = len(votes)
         if nprefs == 0:
             add = rng.integers(0, ncand)
-            new_votes = {str(add): add}
+            new_votes = {str(add): 1}
         elif nprefs == 1:
             new_votes = {}
         else:
             cut_at = rng.integers(0, nprefs-1)
-            new_votes = {str(j): votes[str(j)] for j in range(cut_at)}
-        mvr_input_shuffled[i]['votes']['1'] = new_votes
+            new_votes = {cand: votes[cand] for cand in votes.keys() if votes[cand] <= cut_at}  # TODO This is wrong
+        # print(f'Error: {i}, {votes} -> {new_votes}')
+        mvr_input_shuffled[i-1]['votes']['1'] = new_votes
 
     # Import shuffled CVRs.
     shuffled_cvrs = CVR.from_dict(cvr_input_shuffled)
@@ -213,28 +208,12 @@ def calc_pvalues_single_ordering(contests, cvr_input, orderdata, ordering_index,
 
     return pvalues
 
-# def calc_pvalues_single_ordering(contests, cvr_input, orderings, ordering_index):
-#     # Shuffle ballots according to the given ordering.
-#     cvr_input_shuffled = shuffle(cvr_input, orderings[ordering_index, :])
-#
-#     # Import shuffled CVRs.
-#     shuffled_ballots, _ = CVR.from_raire(cvr_input_shuffled)
-#
-#     # Find measured risks for all assertions.
-#     Assertion.set_p_values(contests, shuffled_ballots, None)
-#
-#     # Extract all of the p-value histories and combine them.
-#     pvalues = merge_pvalues(contests['1'].assertions)
-#
-#     return(pvalues)
-
-
 
 # Calculate p-values for a set of orderings.
-def calc_pvalues_all_orderings(contests, cvr_input, orderdata=None, n_orderings=10):
+def calc_pvalues_all_orderings(contests, cvr_input, orderdata=None, n_orderings=1000, n_errors=0):
     pvalue_list = []
     for o in range(n_orderings):
-        pvalue_list.append(calc_pvalues_single_ordering(contests, cvr_input, orderdata, o))
+        pvalue_list.append(calc_pvalues_single_ordering(contests, cvr_input, orderdata, o, n_errors=n_errors))
     return pvalue_list
 
 
@@ -276,7 +255,7 @@ orderings = path + np.concatenate((orderings_nsw, orderings_usirv))
 
 if __name__ == "__main__":
     counter = 0  # array size on SLURM cluster == 1-13
-    erates = [0.0000]#, 0.0001, 0.0005, 0.0010, 0.0050]
+    erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0050]
     for i, _ in enumerate(datafiles):
         counter += 1  # 1-107
         # print(counter); continue
@@ -287,5 +266,6 @@ if __name__ == "__main__":
         print("datafile, margin, pop_size, error_rate, assertion_margin, sample_size_5pct, certified_5pct")
 
         datafile_name = str(datafile_names[i])
-        main(name=datafile_name, data=rairedata, ncand=ncand, winner=winner, size=nballots, orderdata=orderdata,
-             error_rate=0.0, margin=margin)
+        for erate in erates:
+            main(name=datafile_name, data=rairedata, ncand=ncand, winner=winner, size=nballots, orderdata=orderdata,
+                 error_rate=erate, margin=margin)
