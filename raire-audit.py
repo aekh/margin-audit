@@ -130,17 +130,28 @@ def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None,
 
     # Calculate margins for each assertion.
     min_margin = Assertion.set_all_margins_from_cvrs(audit, contests, cvr_list)
+    # Get min margin assertion
+    hardest_assertion_name, hardest_assertion = min(contests['1'].assertions.items(), key=lambda x: x[1].margin)
 
     # Calculate all of the p-values.
-    pvalue_histories_array = calc_pvalues_all_orderings(contests, cvr_input, orderdata=orderdata, n_orderings=n_orderings, n_errors=n_errors)
-    for pvalue_history in pvalue_histories_array:
+    pvalue_histories_array, overstatements_history = calc_pvalues_all_orderings(contests, cvr_input, hardest_assertion, orderdata=orderdata, n_orderings=n_orderings, n_errors=n_errors)
+    for i, pvalue_history in enumerate(pvalue_histories_array):
         below_5pct = pvalue_history <= 0.05
+        overstatements = np.array(overstatements_history[i])
+        overstatement_type, counts = np.unique(overstatements[~below_5pct], return_counts=True)
+        value_counts = dict(zip([int(x) for x in overstatement_type], [int(x) for x in counts]))
+        value_counts.setdefault(-2, 0)
+        value_counts.setdefault(-1, 0)
+        value_counts.setdefault(0, 0)
+        value_counts.setdefault(1, 0)
+        value_counts.setdefault(2, 0)
         certified_5pct = True
         where_5pct = np.argmax(below_5pct) + 1
         if sum(below_5pct) == 0 or pvalue_history[where_5pct-1] == 0.0:
             certified_5pct = False
             where_5pct = len(pvalue_history)
-        print(f"{name}, {margin}, {size}, {error_rate}, {min_margin}, {where_5pct}, {certified_5pct}")
+        print(f"{name}, {margin}, {size}, {error_rate}, {min_margin}, {where_5pct}, {certified_5pct}, "
+              f"{value_counts[-2]}, {value_counts[-1]}, {value_counts[1]}, {value_counts[2]}")
 
 
 # =============================================================================
@@ -169,7 +180,7 @@ def shuffle(cvrs, ordering):
 
 
 # Calculate p-values for a given ordering.
-def calc_pvalues_single_ordering(contests, cvr_input, orderdata, ordering_index, n_errors=0):
+def calc_pvalues_single_ordering(contests, cvr_input, hardest_assertion, orderdata, ordering_index, n_errors=0):
     # get ordering for sampling and ordering for applying errors
     ordering = orderdata[ordering_index]
     error_ids = orderdata[ordering_index-1][:n_errors]
@@ -205,16 +216,20 @@ def calc_pvalues_single_ordering(contests, cvr_input, orderdata, ordering_index,
 
     # Extract all of the p-value histories and combine them.
     pvalues = merge_pvalues(contests['1'].assertions)
+    overstatements = np.array([hardest_assertion.assorter.overstatement(shuffled_cvrs[i], shuffled_mvrs[i])*2 for i in range(len(shuffled_cvrs))])
 
-    return pvalues
+    return pvalues, overstatements
 
 
 # Calculate p-values for a set of orderings.
-def calc_pvalues_all_orderings(contests, cvr_input, orderdata=None, n_orderings=1000, n_errors=0):
+def calc_pvalues_all_orderings(contests, cvr_input, hardest_assertion, orderdata=None, n_orderings=1000, n_errors=0):
     pvalue_list = []
+    overstatement_list = []
     for o in range(n_orderings):
-        pvalue_list.append(calc_pvalues_single_ordering(contests, cvr_input, orderdata, o, n_errors=n_errors))
-    return pvalue_list
+        pvalues, overstatements = calc_pvalues_single_ordering(contests, cvr_input, hardest_assertion, orderdata, o, n_errors=n_errors)
+        pvalue_list.append(pvalues)
+        overstatement_list.append(overstatements)
+    return pvalue_list, overstatement_list
 
 
 datafiles_nsw = np.array(
@@ -263,7 +278,8 @@ if __name__ == "__main__":
 
         ncand, winner, nballots, margin, orderdata, rairedata = read_election_files(datafiles[i], margins[i], orderings[i])
 
-        print("datafile, margin, pop_size, error_rate, assertion_margin, sample_size_5pct, certified_5pct")
+        print("datafile, margin, pop_size, error_rate, assertion_margin, sample_size_5pct, certified_5pct, "
+              "2-overstatements, 1-overstatements, 1-understatements, 2-understatements")
 
         datafile_name = str(datafile_names[i])
         for erate in erates:
