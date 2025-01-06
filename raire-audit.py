@@ -76,6 +76,9 @@ def read_election_files(datafile, marginfile, orderfile):
 # main(name=datafile_name, data=rairedata, ncand=ncand, size=nballots, orderdata=orderdata, error_rate=0.0,
 #      margin=margin)
 
+# error_model = "truncate"
+error_model = "loser"
+
 def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None, error_rate=0.00, margin=0.03):
 
     if error_rate==0.0:
@@ -83,6 +86,7 @@ def main(name="", data=None, ncand=None, winner=None, size=None, orderdata=None,
         n_errors = 0
     else:
         n_orderings = 1000
+        # n_orderings = 50
         n_errors = int(round(size * error_rate))
 
     contests, cvrs = load_contests_from_raire_raw(data)
@@ -194,17 +198,25 @@ def calc_pvalues_single_ordering(contests, cvr_input, hardest_assertion, orderda
     rng = np.random.default_rng(seed)
     ncand = len(contests['1'].candidates)
     for i in error_ids:
-        votes = mvr_input_shuffled[i-1]['votes']['1']
-        nprefs = len(votes)
-        if nprefs == 0:
-            add = rng.integers(0, ncand)
-            new_votes = {str(add): 1}
-        elif nprefs == 1:
-            new_votes = {}
-        else:
-            cut_at = rng.integers(0, nprefs-1)
-            new_votes = {cand: votes[cand] for cand in votes.keys() if votes[cand] <= cut_at}  # TODO This is wrong
-        # print(f'Error: {i}, {votes} -> {new_votes}')
+        if error_model == "truncate":
+            votes = mvr_input_shuffled[i-1]['votes']['1']
+            nprefs = len(votes)
+            if nprefs == 0:
+                add = rng.integers(0, ncand)
+                new_votes = {str(add): 1}
+            elif nprefs == 1:
+                new_votes = {}
+            else:
+                cut_at = rng.integers(0, nprefs-1)
+                new_votes = {cand: votes[cand] for cand in votes.keys() if votes[cand] <= cut_at}  # TODO This is wrong
+            # print(f'Error: {i}, {votes} -> {new_votes}')
+        elif error_model == "loser":
+            votes = mvr_input_shuffled[i-1]['votes']['1']
+            loser = hardest_assertion.loser
+            if votes == {loser: 1}:
+                new_votes = {loser: 1, hardest_assertion.winner: 2}
+            else:
+                new_votes = {hardest_assertion.loser: 1}
         mvr_input_shuffled[i-1]['votes']['1'] = new_votes
 
     # Import shuffled CVRs.
@@ -270,7 +282,9 @@ orderings = path + np.concatenate((orderings_nsw, orderings_usirv))
 
 if __name__ == "__main__":
     counter = 0  # array size on SLURM cluster == 1-13
-    erates = [0.0000, 0.0001, 0.0005, 0.0010, 0.0050]
+    erates = [#0.0000,
+        0.0001, 0.0005, 0.0010,
+        0.0050]
     for i, _ in enumerate(datafiles):
         counter += 1  # 1-107
         # print(counter); continue
