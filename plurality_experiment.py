@@ -269,7 +269,7 @@ if __name__ == "__main__":
     erates = [0.0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
     dists = ["all_2_over", "all_2_under", "random"]
     pct_blanks = [0.0, 0.80]
-    counter = 0  # 1-1080
+    counter = 0  # 1-960
     for _pop_size, _margin, _erate, _dist, _pct_blank in itertools.product(
             pop_sizes, margins, erates, dists, pct_blanks):
         n_valid = int(round((1 - _pct_blank) * _pop_size))
@@ -282,7 +282,7 @@ if __name__ == "__main__":
             continue  # skip overstatement distributions for zero error rates
         counter += 1
         # print(counter); continue
-        # if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue
+        if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue
         print("method, pop_size, margin, pct_blank, dist, error_rate, assorter_margin, d_value, alpha, "
               "sample_size, certified, n_two_over, n_one_over, n_one_under, n_two_under")
         # print("method, pop_size, margin, error_rate, d_value, dist, pct_blank, sample_size_5pct, sample_size_1pct, "
