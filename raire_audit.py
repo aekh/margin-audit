@@ -228,7 +228,7 @@ def calc_pvalues_single_ordering(contests, cvr_input, hardest_assertion, orderda
 
     # Extract all of the p-value histories and combine them.
     pvalues = merge_pvalues(contests['1'].assertions)
-    overstatements = np.array([hardest_assertion.assorter.overstatement(shuffled_cvrs[i], shuffled_mvrs[i])*2 for i in range(len(shuffled_cvrs))])
+    overstatements = np.array([hardest_assertion.assorter.overstatement(shuffled_mvrs[i], shuffled_cvrs[i])*2 for i in range(len(shuffled_cvrs))])
 
     return pvalues, overstatements
 
@@ -271,8 +271,8 @@ datafiles_usirv_ = "USIRV/" + datafiles_usirv + ".txt"
 margins_usirv = "margins/USIRV/" + datafiles_usirv + ".csv"
 orderings_usirv = "orderings/USIRV/" + datafiles_usirv + ".csv"
 
-path = "/home/aek/lu91/shared/data/dirtree-elections-analysis/"  # MonARCH
-# path = "/Users/aekk0001/Documents/PPR-Audits/datafiles/" # Local
+# path = "/home/aek/lu91/shared/data/dirtree-elections-analysis/"  # MonARCH
+path = "/Users/aekk0001/Documents/PPR-Audits/datafiles/" # Local
 
 datafile_names = np.concatenate((datafiles_nsw, datafiles_usirv))
 datafiles = path + np.concatenate((datafiles_nsw_, datafiles_usirv_))
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     for i, _ in enumerate(datafiles):
         counter += 1  # 1-107
         # print(counter); continue
-        if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue  # parallelise on SLURM cluster
+        # if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue  # parallelise on SLURM cluster
 
         ncand, winner, nballots, margin, orderdata, rairedata = read_election_files(datafiles[i], margins[i], orderings[i])
 
