@@ -433,7 +433,7 @@ runs = [("Oakland_2010_Mayor", "random", 1e-4, [range(600, 1000)]),
         ]
 
 if __name__ == "__main__":
-    n_runs = 3
+    n_runs = 10000
     erates = [0.0, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2]
     dists = ["all_over", "all_under", "truncate", "random"]
     counter = 0  # 1-642
