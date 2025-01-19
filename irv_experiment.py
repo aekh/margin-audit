@@ -75,7 +75,7 @@ def read_election_files(datafile, marginfile, orderfile):
     return ncand, winner, nballots, margin, orderdata, rairedata
 
 
-def main(name, data, pop_size, ncand, winner, margin, orderdata, erate, dist, n_runs):
+def main(name, data, pop_size, ncand, winner, margin, orderdata, erate, dist, n_runs, runset=None):
     audit = Audit.from_dict({
         'strata': {'stratum1': {'use_style': True,
                                 'replacement': False}}
@@ -116,7 +116,9 @@ def main(name, data, pop_size, ncand, winner, margin, orderdata, erate, dist, n_
     # Calculate all the p-values.
     if erate == 0.0:
         n_runs = 1
-    for i in range(n_runs):
+    if runset is None:
+        runset = range(n_runs)
+    for i in runset:
         rng = np.random.default_rng(seed=2025_01_16+i)
         mb_pvalues_100, mb_pvalues_inf, mb_overstatements, cc_pvalues, cc_overstatements = calc_pvalues_single_ordering(
             mb_contests, mb_cvr_input, cc_contests, cc_cvr_input, pop_size, rng, n_errors, dist,
@@ -344,6 +346,10 @@ datafiles_usirv = np.array(
      #"Minneapolis_2013_Mayor", "Minneapolis_2017_Mayor", "Minneapolis_2021_Mayor"
      ])
 
+datafiles_nsw = np.array(["Albury"])
+datafiles_usirv = np.array(["Oakland_2010_Mayor", "Pierce_2008_CountyAssessor", "Pierce_2008_CountyExecutive",
+                            "SanFran_2007_Mayor"])
+
 datafiles_nsw_ = "NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.txt"
 margins_nsw = "margins/NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.csv"
 orderings_nsw = "orderings/NSW2015/Data_NA_" + datafiles_nsw + ".txt_ballots.csv"
@@ -359,6 +365,72 @@ datafiles = path + np.concatenate((datafiles_nsw_, datafiles_usirv_))
 margins = path + np.concatenate((margins_nsw, margins_usirv))
 orderings = path + np.concatenate((orderings_nsw, orderings_usirv))
 
+runs = [("Oakland_2010_Mayor", "random", 1e-4, [range(600, 1000)]),
+        ("Oakland_2010_Mayor", "random", 3e-4, [range(249, 1000)]),
+        ("Oakland_2010_Mayor", "random", 1e-3, [range(260, 1000)]),
+        ("Oakland_2010_Mayor", "random", 3e-3, [range(249, 1000)]),
+        ("Oakland_2010_Mayor", "random", 1e-2, [range(358, 1000)]),
+        ###
+        ("Pierce_2008_CountyAssessor", "all_over", 1e-4, [range(942, 1000)]),
+        ("Pierce_2008_CountyAssessor", "all_under", 1e-4, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "truncate", 1e-4, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "random", 1e-4, [range(0, 333), range(333, 666), range(666, 1000)]),
+        #
+        ("Pierce_2008_CountyAssessor", "all_under", 3e-4, [range(51, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "truncate", 3e-4, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "random", 3e-4, [range(0, 333), range(333, 666), range(666, 1000)]),
+        #
+        ("Pierce_2008_CountyAssessor", "all_under", 1e-3, [range(48, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "truncate", 1e-3, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "random", 1e-3, [range(0, 333), range(333, 666), range(666, 1000)]),
+        #
+        ("Pierce_2008_CountyAssessor", "all_under", 3e-3, [range(42, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "truncate", 3e-3, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "random", 3e-3, [range(0, 333), range(333, 666), range(666, 1000)]),
+        #
+        ("Pierce_2008_CountyAssessor", "all_under", 1e-2, [range(189, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "truncate", 1e-2, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ("Pierce_2008_CountyAssessor", "random", 1e-2, [range(0, 333), range(333, 666), range(666, 1000)]),
+        ###
+        ("Pierce_2008_CountyExecutive", "all_under", 1e-4, [range(687, 1000)]),
+        ("Pierce_2008_CountyExecutive", "truncate", 1e-4, [range(0, 500), range(500, 1000)]),
+        ("Pierce_2008_CountyExecutive", "random", 1e-4, [range(0, 500), range(500, 1000)]),
+        #
+        ("Pierce_2008_CountyExecutive", "all_under", 3e-4, [range(684, 1000)]),
+        ("Pierce_2008_CountyExecutive", "truncate", 3e-4, [range(0, 500), range(500, 1000)]),
+        ("Pierce_2008_CountyExecutive", "random", 3e-4, [range(0, 500), range(500, 1000)]),
+        #
+        ("Pierce_2008_CountyExecutive", "all_under", 1e-3, [range(691, 1000)]),
+        ("Pierce_2008_CountyExecutive", "truncate", 1e-3, [range(0, 500), range(500, 1000)]),
+        ("Pierce_2008_CountyExecutive", "random", 1e-3, [range(0, 500), range(500, 1000)]),
+        #
+        ("Pierce_2008_CountyExecutive", "truncate", 3e-3, [range(221, 500), range(500, 1000)]),
+        ("Pierce_2008_CountyExecutive", "random", 3e-3, [range(0, 500), range(500, 1000)]),
+        #
+        ("Pierce_2008_CountyExecutive", "all_under", 1e-2, [range(724, 1000)]),
+        ("Pierce_2008_CountyExecutive", "truncate", 1e-2, [range(0, 500), range(500, 1000)]),
+        ("Pierce_2008_CountyExecutive", "random", 1e-2, [range(0, 500), range(500, 1000)]),
+        ###
+        ("SanFran_2007_Mayor", "all_under", 1e-4, [range(755, 1000)]),
+        ("SanFran_2007_Mayor", "truncate", 1e-4, [range(0, 500), range(500, 1000)]),
+        ("SanFran_2007_Mayor", "random", 1e-4, [range(0, 500), range(500, 1000)]),
+        #
+        ("SanFran_2007_Mayor", "all_under", 3e-4, [range(768, 1000)]),
+        ("SanFran_2007_Mayor", "truncate", 3e-4, [range(0, 500), range(500, 1000)]),
+        ("SanFran_2007_Mayor", "random", 3e-4, [range(0, 500), range(500, 1000)]),
+        #
+        ("SanFran_2007_Mayor", "all_under", 1e-3, [range(792, 1000)]),
+        ("SanFran_2007_Mayor", "truncate", 1e-3, [range(0, 500), range(500, 1000)]),
+        ("SanFran_2007_Mayor", "random", 1e-3, [range(0, 500), range(500, 1000)]),
+        #
+        ("SanFran_2007_Mayor", "all_under", 3e-3, [range(790, 1000)]),
+        ("SanFran_2007_Mayor", "truncate", 3e-3, [range(0, 500), range(500, 1000)]),
+        ("SanFran_2007_Mayor", "random", 3e-3, [range(0, 500), range(500, 1000)]),
+        #
+        ("SanFran_2007_Mayor", "all_under", 1e-2, [range(765, 1000)]),
+        ("SanFran_2007_Mayor", "truncate", 1e-2, [range(0, 500), range(500, 1000)]),
+        ("SanFran_2007_Mayor", "random", 1e-2, [range(0, 500), range(500, 1000)]),
+        ]
 
 if __name__ == "__main__":
     n_runs = 3
@@ -366,21 +438,37 @@ if __name__ == "__main__":
     dists = ["all_over", "all_under", "truncate", "random"]
     counter = 0  # 1-642
     for i, _ in enumerate(datafiles):
-        for _erate in erates:
-            counter += 1
-            # print(counter); continue
-            if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue
-            print("datafile, method, pop_size, margin, dist, error_rate, assorter_margin, d_value, alpha, permid"
-                  "sample_size, certified, n_two_over, n_one_over, n_one_under, n_two_under")
+        _name = str(datafile_names[i])
+        runs_for_name = [run for run in runs if run[0] == _name]
+        for (_, _dist, _erate, _runsets) in runs_for_name:
+            for _runset in _runsets:
+                counter += 1  # 1-100
+                # print(counter, _name, _dist, _erate, _runset); continue
+                if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue
+                print("datafile, method, pop_size, margin, dist, error_rate, assorter_margin, d_value, alpha, permid"
+                      "sample_size, certified, n_two_over, n_one_over, n_one_under, n_two_under")
 
-            _ncand, _winner, _pop_size, _margin, _orderdata, _rairedata = read_election_files(datafiles[i],
-                                                                                              margins[i],
-                                                                                              orderings[i])
-            _name = str(datafile_names[i])
+                _ncand, _winner, _pop_size, _margin, _orderdata, _rairedata = read_election_files(datafiles[i],
+                                                                                                  margins[i],
+                                                                                                  orderings[i])
 
-            for _dist in dists:
-                if _erate == 0.0 and _dist != "random":
-                    continue  # skip overstatement distributions for zero error rates
-                # counter += 1
-
-                main(_name, _rairedata, _pop_size, _ncand, _winner, _margin, _orderdata, _erate, _dist, n_runs)
+                main(_name, _rairedata, _pop_size, _ncand, _winner, _margin, _orderdata, _erate, _dist, n_runs,
+                     runset=_runset)
+        # for _erate in erates:
+        #     counter += 1
+        #     # print(counter); continue
+        #     if counter != int(os.environ['SLURM_ARRAY_TASK_ID']): continue
+        #     print("datafile, method, pop_size, margin, dist, error_rate, assorter_margin, d_value, alpha, permid"
+        #           "sample_size, certified, n_two_over, n_one_over, n_one_under, n_two_under")
+        #
+        #     _ncand, _winner, _pop_size, _margin, _orderdata, _rairedata = read_election_files(datafiles[i],
+        #                                                                                       margins[i],
+        #                                                                                       orderings[i])
+        #     _name = str(datafile_names[i])
+        #
+        #     for _dist in dists:
+        #         if _erate == 0.0 and _dist != "random":
+        #             continue  # skip overstatement distributions for zero error rates
+        #         # counter += 1
+        #
+        #         main(_name, _rairedata, _pop_size, _ncand, _winner, _margin, _orderdata, _erate, _dist, n_runs)
